@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"strconv"
+
+	"golang.org/x/exp/constraints"
 )
 
 var (
@@ -14,19 +16,25 @@ var (
 	dstFile = "../dst.out"
 )
 
-type assignFunc func([2][]byte, map[string]int64)
+type number interface {
+	constraints.Signed | constraints.Float
+}
+
+type cache[T number] map[string]T
+
+type assignFunc[T number] func([2][]byte, cache[T])
 
 func main() {
 	srcM := make(map[string]int64)
 	{
-		err := read(srcFile, srcM, []byte("\t"), retain)
+		err := read(srcFile, srcM, []byte("\t"), retain[int64])
 		fmt.Printf("%+v\n", len(srcM))
 		fmt.Printf("err: %+v\n", err)
 	}
 
 	dstM := make(map[string]int64)
 	{
-		err := read(dstFile, dstM, []byte(" "), exchange)
+		err := read(dstFile, dstM, []byte(" "), exchange[int64])
 		fmt.Printf("%+v\n", len(dstM))
 		fmt.Printf("err: %+v\n", err)
 	}
@@ -54,20 +62,20 @@ func main() {
 	}
 }
 
-func retain(bs [2][]byte, m map[string]int64) {
+func retain[N number](bs [2][]byte, m cache[N]) {
 	i, err := strconv.ParseInt(string(bs[1]), 10, 64)
 	if err != nil {
 		panic(string(bs[1]))
 	}
-	m[string(bs[0])] = i
+	m[string(bs[0])] = N(i)
 }
 
-func exchange(bs [2][]byte, m map[string]int64) {
+func exchange[N number](bs [2][]byte, m cache[N]) {
 	i, err := strconv.ParseInt(string(bs[0]), 10, 64)
 	if err != nil {
 		panic(string(bs[0]))
 	}
-	m[string(bs[1])] = i
+	m[string(bs[1])] = N(i)
 }
 
 func extract(b []byte, delimiter []byte) [2][]byte {
@@ -78,7 +86,7 @@ func extract(b []byte, delimiter []byte) [2][]byte {
 	return [2][]byte{bs[0], bs[1]}
 }
 
-func read(path string, m map[string]int64, delimiter []byte, fn assignFunc) (err error) {
+func read[N number](path string, m cache[N], delimiter []byte, fn assignFunc[N]) (err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return
