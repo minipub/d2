@@ -18,12 +18,12 @@ var (
 	args []argument
 )
 
-func init() {
+func main() {
 	var revs []bool
 	var paths, seps []string
 
 	root = cobra.Command{
-		Use:   "",
+		Use:   "d2",
 		Short: "D2",
 		Long:  "Compute delta between columns of 2 files of same class",
 		Run: func(_ *cobra.Command, _ []string) {
@@ -31,7 +31,9 @@ func init() {
 			case "i", "f":
 			default:
 				fmt.Fprintf(os.Stderr, "type: %s\n", typ)
-				fmt.Fprintln(os.Stderr, "dst type specify: i(int) or f(float)")
+				fmt.Fprintln(os.Stderr, "dst type specify: i(int) or f(float).")
+				fmt.Fprintln(os.Stderr)
+				root.Help()
 				os.Exit(-1)
 			}
 
@@ -40,6 +42,8 @@ func init() {
 				fmt.Fprintf(os.Stderr, "seps: %+v\n", seps)
 				fmt.Fprintf(os.Stderr, "revs: %+v\n", revs)
 				fmt.Fprintln(os.Stderr, "there should be 3 pairs of params(path, sep, rev), each pair has two values.")
+				fmt.Fprintln(os.Stderr)
+				root.Help()
 				os.Exit(-1)
 			}
 
@@ -47,13 +51,19 @@ func init() {
 				if fi, err := os.Stat(paths[i]); err == nil {
 					if fi.IsDir() {
 						fmt.Fprintf(os.Stderr, "the path should be a file instead of a directory, path: %s.\n", paths[i])
+						fmt.Fprintln(os.Stderr)
+						root.Help()
 						os.Exit(-1)
 					}
 				} else if os.IsNotExist(err) {
 					fmt.Fprintf(os.Stderr, "the path file not exists, path: %s.\n", paths[i])
+					fmt.Fprintln(os.Stderr)
+					root.Help()
 					os.Exit(-1)
 				} else {
 					fmt.Fprintf(os.Stderr, "stats error, path: %s, err: %+v\n", paths[i], err)
+					fmt.Fprintln(os.Stderr)
+					root.Help()
 					os.Exit(-1)
 				}
 
@@ -64,7 +74,9 @@ func init() {
 				})
 			}
 
-			main()
+			fmt.Fprintf(os.Stdout, "args: %+v\n", args)
+
+			compute()
 		},
 	}
 
@@ -92,33 +104,36 @@ type number interface {
 
 type cache[N number] map[string]N
 
-type assignFunc[N number] func([2][]byte, cache[N])
+type assignFunc[N number] func([2][]byte, cache[N], parseFunc[N])
+
+type parseFunc[N number] func(string) N
 
 type dst[N number] struct {
 	path string
 	sep  []byte
 	c    cache[N]
-	fn   assignFunc[N]
+	afn  assignFunc[N]
+	pfn  parseFunc[N]
 }
 
 type dsts[N number] []dst[N]
 
-func (ds dsts[N]) set(v dst[N]) {
-	ds = append(ds, v)
+func (ds *dsts[N]) set(v dst[N]) {
+	*ds = append(*ds, v)
 }
 
 func (ds dsts[N]) compute() {
 	for sk, sv := range ds[0].c {
 		dv, ok := ds[1].c[sk]
 		if !ok {
-			fmt.Printf("only in %s: %d, k: %s\n", ds[0].path, sv, sk)
+			fmt.Printf("only in %s: %+v, k: %s\n", ds[0].path, sv, sk)
 			continue
 		}
 
 		if sv > dv {
-			fmt.Printf("src - dst: %d, k: %s\n", sv-dv, sk)
+			fmt.Printf("src - dst: %+v, k: %s\n", sv-dv, sk)
 		} else if sv < dv {
-			fmt.Printf("dst - src: %d, k: %s\n", dv-sv, sk)
+			fmt.Printf("dst - src: %+v, k: %s\n", dv-sv, sk)
 		}
 	}
 
@@ -131,22 +146,32 @@ func (ds dsts[N]) compute() {
 	}
 }
 
-func main() {
+func compute() {
 	if typ == "f" {
 		var ds dsts[float64]
 
 		for _, a := range args {
+			afn := retain[float64]
+			if a.rev {
+				afn = exchange[float64]
+			}
+
 			d := dst[float64]{
 				a.path,
 				[]byte(a.sep),
 				make(map[string]float64),
-				exchange[float64],
+				afn,
+				parseF64[float64],
 			}
-			err := d.read()
-			fmt.Printf("%+v\n", len(d.c))
-			fmt.Printf("err: %+v\n", err)
 
-			ds = append(ds, d)
+			err := d.read()
+			fmt.Fprintf(os.Stdout, "path: %s, count: %d\n", a.path, len(d.c))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "read error, path: %s, err: %+v\n", a.path, err)
+				os.Exit(-1)
+			}
+
+			ds.set(d)
 		}
 
 		ds.compute()
@@ -154,43 +179,64 @@ func main() {
 		var ds dsts[int64]
 
 		for _, a := range args {
+			afn := retain[int64]
+			if a.rev {
+				afn = exchange[int64]
+			}
+
 			d := dst[int64]{
 				a.path,
 				[]byte(a.sep),
 				make(map[string]int64),
-				retain[int64],
+				afn,
+				parseI64[int64],
 			}
-			err := d.read()
-			fmt.Printf("%+v\n", len(d.c))
-			fmt.Printf("err: %+v\n", err)
 
-			ds = append(ds, d)
+			err := d.read()
+			fmt.Fprintf(os.Stdout, "path: %s, count: %d\n", a.path, len(d.c))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "read error, path: %s, err: %+v\n", a.path, err)
+				os.Exit(-1)
+			}
+
+			ds.set(d)
 		}
 
 		ds.compute()
 	}
 }
 
-func retain[N number](bs [2][]byte, m cache[N]) {
-	i, err := strconv.ParseInt(string(bs[1]), 10, 64)
+func parseI64[N number](s string) (n N) {
+	i, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		panic(string(bs[1]))
+		fmt.Fprintf(os.Stderr, "row value can't convert to i64, s: %+v.\n", s)
+		os.Exit(-1)
 	}
-	m[string(bs[0])] = N(i)
+	return N(i)
 }
 
-func exchange[N number](bs [2][]byte, m cache[N]) {
-	i, err := strconv.ParseInt(string(bs[0]), 10, 64)
+func parseF64[N number](s string) (n N) {
+	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		panic(string(bs[0]))
+		fmt.Fprintf(os.Stderr, "row value can't convert to f64, s: %+v.\n", s)
+		os.Exit(-1)
 	}
-	m[string(bs[1])] = N(i)
+	return N(f)
+}
+
+func retain[N number](bs [2][]byte, c cache[N], pfn parseFunc[N]) {
+	c[string(bs[0])] = pfn(string(bs[1]))
+}
+
+func exchange[N number](bs [2][]byte, c cache[N], pfn parseFunc[N]) {
+	c[string(bs[1])] = pfn(string(bs[0]))
 }
 
 func extract(b []byte, sep []byte) [2][]byte {
 	bs := bytes.Split(b, sep)
 	if len(bs) != 2 {
-		panic(len(bs))
+		fmt.Fprintf(os.Stderr, "extract row hasn't a pair of data, data: %+v, num: %d, sep: %+v.\n", b, len(bs), sep)
+		os.Exit(-1)
 	}
 	return [2][]byte{bs[0], bs[1]}
 }
@@ -215,7 +261,7 @@ func (d dst[_]) read() (err error) {
 
 		b2 := extract(b, d.sep)
 		// fmt.Printf("b2: %s\n", b2)
-		d.fn(b2, d.c)
+		d.afn(b2, d.c, d.pfn)
 	}
 
 	return
