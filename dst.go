@@ -35,7 +35,6 @@ func (d dst[_]) read() (err error) {
 		}
 
 		b2 := extract(b, d.sep)
-		// fmt.Printf("b2: %s\n", b2)
 		d.afn(b2, d.c, d.pfn)
 	}
 
@@ -73,10 +72,10 @@ func (ds dsts[N]) compute() {
 }
 
 func compute() {
-	if typ == "f" {
+	if args.typ == 'f' {
 		var ds dsts[float64]
 
-		for _, a := range args {
+		for _, a := range args.posArgs {
 			afn := retain[float64]
 			if a.rev {
 				afn = exchange[float64]
@@ -104,7 +103,7 @@ func compute() {
 	} else {
 		var ds dsts[int64]
 
-		for _, a := range args {
+		for _, a := range args.posArgs {
 			afn := retain[int64]
 			if a.rev {
 				afn = exchange[int64]
