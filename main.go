@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -30,40 +31,44 @@ func main() {
 			switch typ {
 			case "i", "f":
 			default:
-				fmt.Fprintf(os.Stderr, "type: %s\n", typ)
-				fmt.Fprintln(os.Stderr, "dst type specify: i(int) or f(float).")
-				fmt.Fprintln(os.Stderr)
-				root.Help()
+				fmt.Fprintf(os.Stderr, "Error: invalid type: %s\n", typ)
 				os.Exit(-1)
 			}
 
-			if len(paths) != 2 || len(seps) != 2 || len(revs) != 2 {
-				fmt.Fprintf(os.Stderr, "paths: %+v\n", paths)
-				fmt.Fprintf(os.Stderr, "seps: %+v\n", seps)
-				fmt.Fprintf(os.Stderr, "revs: %+v\n", revs)
-				fmt.Fprintln(os.Stderr, "there should be 3 pairs of params(path, sep, rev), each pair has two values.")
-				fmt.Fprintln(os.Stderr)
-				root.Help()
+			if len(paths) != 2 {
+				f := `invalid paths: []`
+				if len(paths) > 0 {
+					f = fmt.Sprintf(`invalid paths: ["%+v"]`, strings.Join(paths, `","`))
+				}
+				fmt.Fprintln(os.Stderr, "Error:", f)
+				os.Exit(-1)
+			}
+
+			if len(seps) != 2 {
+				f := `invalid seps: []`
+				if len(seps) > 0 {
+					f = fmt.Sprintf(`invalid seps: ["%+v"]`, strings.Join(seps, `","`))
+				}
+				fmt.Fprintln(os.Stderr, "Error:", f)
+				os.Exit(-1)
+			}
+
+			if len(revs) != 2 {
+				fmt.Fprintf(os.Stderr, "Error: invalid revs: [%+v]\n", formatBool(revs))
 				os.Exit(-1)
 			}
 
 			for i := 0; i < 2; i++ {
 				if fi, err := os.Stat(paths[i]); err == nil {
 					if fi.IsDir() {
-						fmt.Fprintf(os.Stderr, "the path should be a file instead of a directory, path: %s.\n", paths[i])
-						fmt.Fprintln(os.Stderr)
-						root.Help()
+						fmt.Fprintf(os.Stderr, "Error: the path should be a file instead of a directory, path: %s.\n", paths[i])
 						os.Exit(-1)
 					}
 				} else if os.IsNotExist(err) {
-					fmt.Fprintf(os.Stderr, "the path file not exists, path: %s.\n", paths[i])
-					fmt.Fprintln(os.Stderr)
-					root.Help()
+					fmt.Fprintf(os.Stderr, "Error: the path file not exists, path: %s.\n", paths[i])
 					os.Exit(-1)
 				} else {
-					fmt.Fprintf(os.Stderr, "stats error, path: %s, err: %+v\n", paths[i], err)
-					fmt.Fprintln(os.Stderr)
-					root.Help()
+					fmt.Fprintf(os.Stderr, "Error: stats error, path: %s, err: %+v\n", paths[i], err)
 					os.Exit(-1)
 				}
 
@@ -88,6 +93,18 @@ func main() {
 
 	root.Execute()
 
+}
+
+func formatBool(bs []bool) string {
+	if len(bs) == 0 {
+		return ""
+	}
+
+	var s []string
+	for _, b := range bs {
+		s = append(s, strconv.FormatBool(b))
+	}
+	return strings.Join(s, ",")
 }
 
 type argument struct {
@@ -167,7 +184,7 @@ func compute() {
 			err := d.read()
 			fmt.Fprintf(os.Stdout, "path: %s, count: %d\n", a.path, len(d.c))
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "read error, path: %s, err: %+v\n", a.path, err)
+				fmt.Fprintf(os.Stderr, "Error: read error, path: %s, err: %+v\n", a.path, err)
 				os.Exit(-1)
 			}
 
@@ -195,7 +212,7 @@ func compute() {
 			err := d.read()
 			fmt.Fprintf(os.Stdout, "path: %s, count: %d\n", a.path, len(d.c))
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "read error, path: %s, err: %+v\n", a.path, err)
+				fmt.Fprintf(os.Stderr, "Error: read error, path: %s, err: %+v\n", a.path, err)
 				os.Exit(-1)
 			}
 
@@ -209,7 +226,7 @@ func compute() {
 func parseI64[N number](s string) (n N) {
 	i, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "row value can't convert to i64, s: %+v.\n", s)
+		fmt.Fprintf(os.Stderr, "Error: row value can't convert to i64, s: %+v.\n", s)
 		os.Exit(-1)
 	}
 	return N(i)
@@ -218,7 +235,7 @@ func parseI64[N number](s string) (n N) {
 func parseF64[N number](s string) (n N) {
 	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "row value can't convert to f64, s: %+v.\n", s)
+		fmt.Fprintf(os.Stderr, "Error: row value can't convert to f64, s: %+v.\n", s)
 		os.Exit(-1)
 	}
 	return N(f)
@@ -235,7 +252,7 @@ func exchange[N number](bs [2][]byte, c cache[N], pfn parseFunc[N]) {
 func extract(b []byte, sep []byte) [2][]byte {
 	bs := bytes.Split(b, sep)
 	if len(bs) != 2 {
-		fmt.Fprintf(os.Stderr, "extract row hasn't a pair of data, data: %+v, num: %d, sep: %+v.\n", b, len(bs), sep)
+		fmt.Fprintf(os.Stderr, "Error: extract row hasn't a pair of data, data: %+v, num: %d, sep: %+v.\n", b, len(bs), sep)
 		os.Exit(-1)
 	}
 	return [2][]byte{bs[0], bs[1]}
