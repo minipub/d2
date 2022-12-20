@@ -87,8 +87,8 @@ func main() {
 
 	root.Flags().StringVarP(&typ, "type", "t", "i", "dst type specify: i(int) or f(float)")
 
-	root.Flags().StringSliceVarP(&paths, "path", "p", []string{}, "dst file path")
-	root.Flags().StringSliceVarP(&seps, "sep", "s", []string{" ", " "}, "dst separator")
+	root.Flags().StringArrayVarP(&paths, "path", "p", []string{}, "dst file path")
+	root.Flags().StringArrayVarP(&seps, "sep", "s", []string{" ", " "}, "dst separator")
 	root.Flags().BoolSliceVarP(&revs, "rev", "r", []bool{false, false}, "dst column sequence: false(forward) or true(reverse)")
 
 	root.Execute()
