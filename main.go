@@ -1,10 +1,10 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
-	"io"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"strconv"
 	"strings"
@@ -107,179 +107,56 @@ func formatBool(bs []bool) string {
 	return strings.Join(s, ",")
 }
 
-type argument struct {
-	path string
-	sep  string
-	rev  bool
-}
-
-type number interface {
-	int64 | float64
-}
-
-// type numbers[N number] []N
-
-type cache[N number] map[string]N
-
-type assignFunc[N number] func([2][]byte, cache[N], parseFunc[N])
-
-type parseFunc[N number] func(string) N
-
-type dst[N number] struct {
-	path string
-	sep  []byte
-	c    cache[N]
-	afn  assignFunc[N]
-	pfn  parseFunc[N]
-}
-
-type dsts[N number] []dst[N]
-
-func (ds *dsts[N]) set(v dst[N]) {
-	*ds = append(*ds, v)
-}
-
-func (ds dsts[N]) compute() {
-	for sk, sv := range ds[0].c {
-		dv, ok := ds[1].c[sk]
-		if !ok {
-			fmt.Printf("only in %s: %+v, k: %s\n", ds[0].path, sv, sk)
-			continue
-		}
-
-		if sv > dv {
-			fmt.Printf("src - dst: %+v, k: %s\n", sv-dv, sk)
-		} else if sv < dv {
-			fmt.Printf("dst - src: %+v, k: %s\n", dv-sv, sk)
-		}
-	}
-
-	for k, v := range ds[1].c {
-		_, ok := ds[0].c[k]
-		if !ok {
-			fmt.Printf("only in %s, k: %s, v: %+v\n", ds[1].path, k, v)
-			continue
-		}
-	}
-}
-
-func compute() {
-	if typ == "f" {
-		var ds dsts[float64]
-
-		for _, a := range args {
-			afn := retain[float64]
-			if a.rev {
-				afn = exchange[float64]
-			}
-
-			d := dst[float64]{
-				a.path,
-				[]byte(a.sep),
-				make(map[string]float64),
-				afn,
-				parseF64[float64],
-			}
-
-			err := d.read()
-			fmt.Fprintf(os.Stdout, "path: %s, count: %d\n", a.path, len(d.c))
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: read error, path: %s, err: %+v\n", a.path, err)
-				os.Exit(-1)
-			}
-
-			ds.set(d)
-		}
-
-		ds.compute()
-	} else {
-		var ds dsts[int64]
-
-		for _, a := range args {
-			afn := retain[int64]
-			if a.rev {
-				afn = exchange[int64]
-			}
-
-			d := dst[int64]{
-				a.path,
-				[]byte(a.sep),
-				make(map[string]int64),
-				afn,
-				parseI64[int64],
-			}
-
-			err := d.read()
-			fmt.Fprintf(os.Stdout, "path: %s, count: %d\n", a.path, len(d.c))
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: read error, path: %s, err: %+v\n", a.path, err)
-				os.Exit(-1)
-			}
-
-			ds.set(d)
-		}
-
-		ds.compute()
-	}
-}
-
-func parseI64[N number](s string) (n N) {
-	i, err := strconv.ParseInt(s, 10, 64)
+func parseExpr() {
+	expr, err := parser.ParseExpr("1+2|4|8")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: row value can't convert to i64, s: %+v.\n", s)
-		os.Exit(-1)
-	}
-	return N(i)
-}
-
-func parseF64[N number](s string) (n N) {
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: row value can't convert to f64, s: %+v.\n", s)
-		os.Exit(-1)
-	}
-	return N(f)
-}
-
-func retain[N number](bs [2][]byte, c cache[N], pfn parseFunc[N]) {
-	c[string(bs[0])] = pfn(string(bs[1]))
-}
-
-func exchange[N number](bs [2][]byte, c cache[N], pfn parseFunc[N]) {
-	c[string(bs[1])] = pfn(string(bs[0]))
-}
-
-func extract(b []byte, sep []byte) [2][]byte {
-	bs := bytes.Split(b, sep)
-	if len(bs) != 2 {
-		fmt.Fprintf(os.Stderr, "Error: extract row hasn't a pair of data, data: %+v, num: %d, sep: %+v.\n", b, len(bs), sep)
-		os.Exit(-1)
-	}
-	return [2][]byte{bs[0], bs[1]}
-}
-
-func (d dst[_]) read() (err error) {
-	f, err := os.Open(d.path)
-	if err != nil {
+		fmt.Printf("err: %+v\n", err)
 		return
 	}
-	defer f.Close()
 
-	r := bufio.NewReader(f)
+	ast.Print(nil, expr)
 
-	for {
-		b, _, err := r.ReadLine()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		b2 := extract(b, d.sep)
-		// fmt.Printf("b2: %s\n", b2)
-		d.afn(b2, d.c, d.pfn)
+	rs, err := interpret(expr)
+	if err != nil {
+		fmt.Printf("err: %+v\n", err)
+		return
 	}
 
-	return
+	fmt.Printf("rs: %d\n", rs)
+}
+
+func interpret(expr ast.Node) (int, error) {
+	switch a := expr.(type) {
+	case *ast.BinaryExpr:
+		x, err := interpret(a.X)
+		if err != nil {
+			return -4, err
+		}
+
+		y, err := interpret(a.Y)
+		if err != nil {
+			return -5, err
+		}
+
+		switch a.Op {
+		case token.OR:
+			return x + y, nil
+		default:
+			return -6, fmt.Errorf("unknown op")
+		}
+
+	case *ast.BasicLit:
+		switch a.Kind {
+		case token.INT:
+			i, err := strconv.Atoi(a.Value)
+			if err != nil {
+				return -2, err
+			}
+			return i, nil
+		default:
+			return -1, fmt.Errorf("unknown lit")
+		}
+	}
+
+	return -3, fmt.Errorf("unknown type")
 }
