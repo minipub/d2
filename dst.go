@@ -72,10 +72,10 @@ func (ds dsts[N]) compute() {
 }
 
 func compute() {
-	if args.typ == 'f' {
+	if opts.typ == 'f' {
 		var ds dsts[float64]
 
-		for _, a := range args.posArgs {
+		for _, a := range opts.posOpts {
 			afn := retain[float64]
 			if a.rev {
 				afn = exchange[float64]
@@ -103,7 +103,7 @@ func compute() {
 	} else {
 		var ds dsts[int64]
 
-		for _, a := range args.posArgs {
+		for _, a := range opts.posOpts {
 			afn := retain[int64]
 			if a.rev {
 				afn = exchange[int64]

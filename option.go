@@ -10,36 +10,41 @@ import (
 	"strings"
 )
 
-var args argument
+var opts option
 
-type posArg struct {
+type posOpt struct {
 	path string
 	sep  string
 	rev  bool
 }
 
-type posArgs []posArg
+type posOpts []posOpt
 
-type argument struct {
+type option struct {
 	typ   byte
 	level uint8
-	posArgs
+	posOpts
 }
 
-func buildArgs(t digitType, p paths, s seps, r revs) {
-	args.typ = byte(t)
-	for i := 0; i < 2; i++ {
-		args.posArgs = append(args.posArgs, posArg{
-			p[i],
-			s[i],
-			r[i],
-		})
-	}
-	fmt.Fprintf(os.Stdout, "args: %+v\n", args)
+func (p *option) init() {
+	p.posOpts = make(posOpts, 0, 2)
+}
+
+func (p *option) print() {
+	fmt.Fprintf(os.Stdout, "opts: %+v\n", p)
+}
+
+type optioner interface {
+	parser
+	wither
 }
 
 type parser interface {
 	parse()
+}
+
+type wither interface {
+	with(*option)
 }
 
 type digitType byte
@@ -48,9 +53,13 @@ func (dt digitType) parse() {
 	switch dt {
 	case 'i', 'f':
 	default:
-		fmt.Fprintf(os.Stderr, "Error: invalid digit type: %s\n", dt)
+		fmt.Fprintf(os.Stderr, "Error: invalid digit type: %c\n", dt)
 		os.Exit(-1)
 	}
+}
+
+func (dt digitType) with(opt *option) {
+	opt.typ = byte(dt)
 }
 
 type paths []string
@@ -81,6 +90,12 @@ func (p paths) parse() {
 	}
 }
 
+func (p paths) with(opt *option) {
+	for i := 0; i < 2; i++ {
+		opts.posOpts[i].path = p[i]
+	}
+}
+
 type seps []string
 
 func (s seps) parse() {
@@ -94,12 +109,24 @@ func (s seps) parse() {
 	}
 }
 
+func (s seps) with(opt *option) {
+	for i := 0; i < 2; i++ {
+		opts.posOpts[i].sep = s[i]
+	}
+}
+
 type revs []bool
 
 func (r revs) parse() {
 	if len(r) != 2 {
 		fmt.Fprintf(os.Stderr, "Error: invalid revs: [%+v]\n", formatBool(r))
 		os.Exit(-1)
+	}
+}
+
+func (r revs) with(opt *option) {
+	for i := 0; i < 2; i++ {
+		opts.posOpts[i].rev = r[i]
 	}
 }
 
@@ -133,6 +160,11 @@ func (l *level) parse() {
 	// fmt.Printf("i: %d\n", i)
 
 	*l = level(strconv.Itoa(i))
+}
+
+func (l *level) with(opt *option) {
+	i, _ := strconv.Atoi(string(*l))
+	opts.level = uint8(i)
 }
 
 func interpret(expr ast.Node) (int, error) {

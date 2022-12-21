@@ -16,22 +16,25 @@ func main() {
 		Long:  "Compute delta between columns of 2 files of same class",
 		Run: func(_ *cobra.Command, _ []string) {
 			tv, lv, pv, sv, rv := digitType([]byte(typ)[0]), level(l), paths(p), seps(s), revs(r)
-			prs := []parser{
+			prs := []optioner{
 				tv, &lv, pv, sv, rv,
 			}
 
+			opts.init()
+
 			for _, pr := range prs {
 				pr.parse()
+				pr.with(&opts)
 			}
 
-			buildArgs(tv, p, s, r)
+			opts.print()
 
 			compute()
 		},
 	}
 
 	root.Flags().StringVarP(&typ, "type", "t", "i", "digit type specify: i(int) or f(float)")
-	root.Flags().StringVarP(&l, "level", "v", "1|2|4|8", `print level (unit: bit)
+	root.Flags().StringVarP(&l, "level", "l", "1|2|4|8", `print level (unit: bit)
 1: argv[0] only 
 2: argv[1] only 
 4: argv[0] - argv[1] 
