@@ -39,6 +39,7 @@ func main() {
 2: argv[1] only 
 4: argv[0] - argv[1] 
 8: argv[1] - argv[0] 
+16: verbose 
 `)
 
 	root.Flags().StringArrayVarP(&p, "path", "p", []string{}, "file path")

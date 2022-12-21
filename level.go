@@ -9,6 +9,8 @@ const (
 	sub1st2nd
 	// 8: argv[1] - argv[0]
 	sub2nd1st
+	// 16: verbose
+	verbose
 )
 
 type intLevel uint8
@@ -27,4 +29,8 @@ func (l intLevel) isSub1st2nd() bool {
 
 func (l intLevel) isSub2nd1st() bool {
 	return l&sub2nd1st == sub2nd1st
+}
+
+func (l intLevel) isVerbose() bool {
+	return l&verbose == verbose
 }

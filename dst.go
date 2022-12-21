@@ -52,18 +52,18 @@ func (ds dsts[N]) compute() {
 		bv, ok := ds[1].c[fk]
 		if !ok {
 			if opts.isOnly1st() {
-				fmt.Printf("[argv[1st] only] k: %s, v: %+v\n", fk, fv)
-				continue
+				fmt.Fprintf(os.Stdout, "[argv[1st] only] k: %s, v: %+v\n", fk, fv)
 			}
+			continue
 		}
 
 		if fv > bv {
 			if opts.isSub1st2nd() {
-				fmt.Printf("[argv[1st] - argv[2nd]] k: %s, v: %+v\n", fk, fv-bv)
+				fmt.Fprintf(os.Stdout, "[argv[1st](%+v) - argv[2nd](%+v)] k: %s, v: %+v\n", fv, bv, fk, fv-bv)
 			}
 		} else if fv < bv {
 			if opts.isSub2nd1st() {
-				fmt.Printf("[argv[2nd] - argv[1st]] k: %s, v: %+v\n", fk, bv-fv)
+				fmt.Fprintf(os.Stdout, "[argv[2nd](%+v) - argv[1st](%+v)] k: %s, v: %+v\n", bv, fv, fk, bv-fv)
 			}
 		}
 	}
@@ -72,9 +72,9 @@ func (ds dsts[N]) compute() {
 		_, ok := ds[0].c[k]
 		if !ok {
 			if opts.isOnly2nd() {
-				fmt.Printf("[argv[2nd] only] k: %s, v: %+v\n", k, v)
-				continue
+				fmt.Fprintf(os.Stdout, "[argv[2nd] only] k: %s, v: %+v\n", k, v)
 			}
+			continue
 		}
 	}
 }
@@ -98,7 +98,9 @@ func compute() {
 			}
 
 			err := d.read()
-			fmt.Fprintf(os.Stdout, "path: %s, count: %d\n", a.path, len(d.c))
+			if opts.isVerbose() {
+				fmt.Fprintf(os.Stdout, "path: %s, line count: %d\n", a.path, len(d.c))
+			}
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: read error, path: %s, err: %+v\n", a.path, err)
 				os.Exit(-1)
@@ -126,7 +128,9 @@ func compute() {
 			}
 
 			err := d.read()
-			fmt.Fprintf(os.Stdout, "path: %s, count: %d\n", a.path, len(d.c))
+			if opts.isVerbose() {
+				fmt.Fprintf(os.Stdout, "path: %s, line count: %d\n", a.path, len(d.c))
+			}
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: read error, path: %s, err: %+v\n", a.path, err)
 				os.Exit(-1)

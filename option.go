@@ -31,7 +31,9 @@ func (p *option) init() {
 }
 
 func (p *option) print() {
-	fmt.Fprintf(os.Stdout, "opts: %+v\n", p)
+	if p.isVerbose() {
+		fmt.Fprintf(os.Stdout, "opts: %+v\n", p)
+	}
 }
 
 type optioner interface {
