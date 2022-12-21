@@ -1,4 +1,4 @@
-module d2
+module github.com/minipub/d2
 
 go 1.18
 
