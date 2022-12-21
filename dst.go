@@ -51,22 +51,30 @@ func (ds dsts[N]) compute() {
 	for fk, fv := range ds[0].c {
 		bv, ok := ds[1].c[fk]
 		if !ok {
-			fmt.Printf("[argv[1st] only] k: %s, v: %+v\n", fk, fv)
-			continue
+			if opts.isOnly1st() {
+				fmt.Printf("[argv[1st] only] k: %s, v: %+v\n", fk, fv)
+				continue
+			}
 		}
 
 		if fv > bv {
-			fmt.Printf("[argv[1st] - argv[2nd]] k: %s, v: %+v\n", fk, fv-bv)
+			if opts.isSub1st2nd() {
+				fmt.Printf("[argv[1st] - argv[2nd]] k: %s, v: %+v\n", fk, fv-bv)
+			}
 		} else if fv < bv {
-			fmt.Printf("[argv[2nd] - argv[1st]] k: %s, v: %+v\n", fk, bv-fv)
+			if opts.isSub2nd1st() {
+				fmt.Printf("[argv[2nd] - argv[1st]] k: %s, v: %+v\n", fk, bv-fv)
+			}
 		}
 	}
 
 	for k, v := range ds[1].c {
 		_, ok := ds[0].c[k]
 		if !ok {
-			fmt.Printf("[argv[2nd] only] k: %s, v: %+v\n", k, v)
-			continue
+			if opts.isOnly2nd() {
+				fmt.Printf("[argv[2nd] only] k: %s, v: %+v\n", k, v)
+				continue
+			}
 		}
 	}
 }

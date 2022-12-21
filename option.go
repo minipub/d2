@@ -21,8 +21,8 @@ type posOpt struct {
 type posOpts []posOpt
 
 type option struct {
-	typ   byte
-	level uint8
+	typ byte
+	intLevel
 	posOpts
 }
 
@@ -164,7 +164,7 @@ func (l *level) parse() {
 
 func (l *level) with(opt *option) {
 	i, _ := strconv.Atoi(string(*l))
-	opts.level = uint8(i)
+	opts.intLevel = intLevel(uint8(i))
 }
 
 func interpret(expr ast.Node) (int, error) {
