@@ -113,7 +113,12 @@ func (s seps) parse() {
 
 func (s seps) with(opt *option) {
 	for i := 0; i < 2; i++ {
-		opts.posOpts[i].sep = s[i]
+		sep, err := strconv.Unquote(`"` + s[i] + `"`)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error: Unquote error, err:", err)
+			os.Exit(-1)
+		}
+		opts.posOpts[i].sep = sep
 	}
 }
 

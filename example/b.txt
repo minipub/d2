@@ -1,2 +1,2 @@
-3 peach
-88 lemon
+3	peach
+88	lemon
