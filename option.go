@@ -27,7 +27,7 @@ type option struct {
 }
 
 func (p *option) init() {
-	p.posOpts = make(posOpts, 0, 2)
+	p.posOpts = make(posOpts, 2)
 }
 
 func (p *option) print() {
